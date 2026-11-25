@@ -253,13 +253,13 @@ You now have two `.elf` executables built from the *same* C code but optimised d
 Disassemble the `-O1` build:
 
 ```bash
-riscv64-unknown-elf-objdump -d sum1ton_O1.elf | less
+riscv64-unknown-elf-objdump -d sum1ton.elf | less
 ```
 
 Disassemble the `-Ofast` build:
 
 ```bash
-riscv64-unknown-elf-objdump -d sum1ton9fast.elf | less
+riscv64-unknown-elf-objdump -d sum1tonfast.elf | less
 ```
 
 Tips for `less`: press `/main` then Enter to search for `main`, press `n` for the next match, and press `q` to quit.
@@ -269,8 +269,8 @@ Each line of output shows three things: the **memory address**, the **machine co
 To save the output in a file instead:
 
 ```bash
-riscv64-unknown-elf-objdump -d sum1ton9.elf > sum1ton9.txt
-riscv64-unknown-elf-objdump -d sum1ton9fast.elf > sum1ton9.txt
+riscv64-unknown-elf-objdump -d sum1ton9.elf > sum1ton.txt
+riscv64-unknown-elf-objdump -d sum1ton9fast.elf > sum1ton.txt
 ```
 
 To compare how many instructions `main` takes in each build, open both files and look at the `<main>` section. The `-Ofast` version is often shorter or tighter, because the compiler can simplify the loop.
@@ -280,7 +280,7 @@ To compare how many instructions `main` takes in each build, open both files and
 Run the program normally:
 
 ```bash
-spike pk sum1ton9.elf
+spike pk sum1ton.elf
 ```
 
 Expected output:
@@ -292,7 +292,7 @@ Sum of integers,15
 Run the `-Ofast` build too and confirm that the result is the same:
 
 ```bash
-spike pk sum1ton9.o
+spike pk sum1ton.o
 ```
 
 > **Note:** Use the `.elf` file name that you created in Step 3. Spike takes the program as an argument after `pk`.
@@ -302,7 +302,7 @@ spike pk sum1ton9.o
 Start Spike in interactive debug mode:
 
 ```bash
-spike -d pk sum1ton9.o
+spike -d pk sum1ton.o
 ```
 
 You will get a `:` prompt. Type the following commands one at a time:
@@ -373,19 +373,19 @@ The compiler may keep variables in registers instead of memory, remove unnecessa
 gcc sum1ton.c -o a.out && ./a.out
 
 # 2. RISC-V builds
-riscv64-unknown-elf-gcc -O1    -mabi=lp64 -march=rv64i -o sum1ton_O1.elf    sum1ton.c
-riscv64-unknown-elf-gcc -Ofast -mabi=lp64 -march=rv64i -o sum1ton_Ofast.elf sum1ton.c
+riscv64-unknown-elf-gcc -O1    -mabi=lp64 -march=rv64i -o sum1ton.elf    sum1ton.c
+riscv64-unknown-elf-gcc -Ofast -mabi=lp64 -march=rv64i -o sum1tonOfast.elf sum1ton.c
 
 # 3. Disassemble
-riscv64-unknown-elf-objdump -d sum1ton9.elf | less
-riscv64-unknown-elf-objdump -d sum1ton9.elf | less
+riscv64-unknown-elf-objdump -d sum1ton.elf | less
+riscv64-unknown-elf-objdump -d sum1ton.elf | less
 
 # 4. Run on Spike
-spike pk sum1ton9.o
-spike pk sum1ton9.o
+spike pk sum1ton.o
+spike pk sum1ton.o
 
 # 5. Debug on Spike
-spike -d pk sum1ton9.o
+spike -d pk sum1ton.o
 ```
 
 ---
