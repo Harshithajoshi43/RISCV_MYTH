@@ -227,13 +227,14 @@ Sum of integers,15
 Compile with optimisation level **-O1**:
 
 ```bash
-riscv64-unknown-elf-gcc -O1 -mabi=lp64 -march=rv64i -o sum1ton9.elf sum1ton.c
+riscv64-unknown-elf-gcc -O -mabi=lp64d -march=rv64imafdc -o sum1ton.o sum1ton.c
+
 ```
 
 Compile again with **-Ofast**:
 
 ```bash
-riscv64-unknown-elf-gcc -Ofast -mabi=lp64 -march=rv64i -o sum1ton9.elf sum1ton.c
+riscv64-unknown-elf-gcc -Ofast -mabi=lp64 -march=rv64i -o sum1ton.o sum1ton.c
 ```
 
 **What each flag means**
@@ -253,13 +254,13 @@ You now have two `.elf` executables built from the *same* C code but optimised d
 Disassemble the `-O1` build:
 
 ```bash
-riscv64-unknown-elf-objdump -d sum1ton.elf | less
+riscv64-unknown-elf-objdump -d sum1ton.o | less
 ```
 
 Disassemble the `-Ofast` build:
 
 ```bash
-riscv64-unknown-elf-objdump -d sum1tonfast.elf | less
+riscv64-unknown-elf-objdump -d sum1tonfast.o | less
 ```
 
 Tips for `less`: press `/main` then Enter to search for `main`, press `n` for the next match, and press `q` to quit.
@@ -280,7 +281,7 @@ To compare how many instructions `main` takes in each build, open both files and
 Run the program normally:
 
 ```bash
-spike pk sum1ton.elf
+spike pk sum1ton.o
 ```
 
 Expected output:
