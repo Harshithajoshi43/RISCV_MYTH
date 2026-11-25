@@ -169,18 +169,57 @@ Looking at the `<main>` disassembly confirms how the compiler follows the ABI ru
 
 ---
 
-### Part 2: Running the C Program on a Verilog RISC-V CPU (`rv32im.sh`)
+#### 3. Execution Commands & Hardware Simulation Output
 
-In this step, we verify our C + Assembly program on actual hardware—a 32-bit RISC-V processor (**PicoRV32**) written in Verilog—using **Icarus Verilog (`iverilog`)**.
-
-#### 1. Automation Script (`rv32im.sh`)
-Since PicoRV32 is a 32-bit core (`RV32IM`), the script cross-compiles our code for 32-bit architecture, converts the ELF binary into a `.hex` memory file, and runs the Verilog simulation.
+To navigate into the lab directory, give execution permissions to the script, and run the Verilog hardware simulation, use the following commands:
 
 ```bash
-riscv64-unknown-elf-gcc -c -mabi=ilp32 -march=rv32im -o 1to9_custom.o 1to9_custom.c
-riscv64-unknown-elf-gcc -c -mabi=ilp32 -march=rv32im -o load.o load.S
+# Navigate to the lab directory
+cd ~/riscv_workshop_collaterals/labs
 
+# Grant execution permission to the shell script
+chmod 777 rv32im.sh
+
+# Run the compilation and Verilog simulation script
+./rv32im.sh
 ```
+
+<img width="1076" height="607" alt="image" src="https://github.com/user-attachments/assets/248f72e7-9046-4b2a-b906-fe6d90d6c0af" />
+<img width="1600" height="900" alt="image" src="https://github.com/user-attachments/assets/d7b0ab0f-bceb-4ff7-8869-28f30b978e6e" />
+
+<img width="1600" height="900" alt="image" src="https://github.com/user-attachments/assets/a5a4c70e-3a34-488b-a24b-e8c8d62ae0b0" />
+
+
+##### Command Breakdown:
+* **`cd ~/riscv_workshop_collaterals/labs`**: Moves into the working directory containing the C source files (`1to9_custom.c`), assembly code (`load.S`, `start.S`), Verilog CPU (`picorv32.v`), and testbench (`testbench.v`).
+* **`chmod 777 rv32im.sh`**: Grants read, write, and execute permissions to `rv32im.sh` so the terminal can run it as a program.
+* **`./rv32im.sh`**: Executes the entire pipeline—compiling the C/Assembly code for `RV32IM`, generating `firmware32.hex`, compiling the Verilog design with `iverilog`, and simulating it with `vvp`.
+
+##### Simulation Output:
+```text
+Sum of number from 1 to 2 is 3
+TRAP
+testbench.v:111: \$finish called at 162950000 (1ps)
+```
+
+* **`Sum of number from 1 to 2 is 3`**: Printed directly by the simulated **PicoRV32** hardware core executing the compiled C program from memory (where `count` in the local lab file was set to `2`).
+* **`TRAP`**: Signals that the processor finished executing `main()` and reached the end-of-program halt/trap condition defined in `start.S`.
+* **`$finish called at 162950000 (1ps)`**: Indicates that the Verilog testbench (`testbench.v` at line `111`) cleanly terminated the simulation once the `TRAP` signal was detected.
+
+---
+
+#### 4. Inspecting the Generated Memory File (`firmware.hex`)
+
+You can inspect the generated machine-code hex file using `vim firmware.hex` or any text editor:
+
+```bash
+vim firmware.hex
+```
+
+##### What is inside `firmware.hex`?
+* **`@00000000` (Boot / Startup Section):** The `@` symbol specifies the starting memory address in hexadecimal. Address `0x00000000` contains the machine code from `start.S` (initializing registers `x1` through `x15` to zero with `addi` instructions like `93 00 00 00`, `93 01 00 00`, etc.) before jumping to `main`.
+* **`@00010000` (Main Firmware Section):** Starting at memory address `0x00010000`, this block stores the compiled 32-bit instructions for `main()`, `load()`, and `printf()` in **Little-Endian byte order** (least significant byte first), which the Verilog testbench loads into memory to drive the CPU.
+
 
 
 
