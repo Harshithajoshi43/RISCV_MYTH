@@ -373,15 +373,13 @@ The compiler may keep variables in registers instead of memory, remove unnecessa
 gcc sum1ton.c -o a.out && ./a.out
 
 # 2. RISC-V builds
-riscv64-unknown-elf-gcc -O1    -mabi=lp64 -march=rv64i -o sum1ton.elf    sum1ton.c
-riscv64-unknown-elf-gcc -Ofast -mabi=lp64 -march=rv64i -o sum1tonOfast.elf sum1ton.c
+riscv64-unknown-elf-gcc -O1    -mabi=lp64 -march=rv64i -o sum1ton.o   sum1ton.c
+riscv64-unknown-elf-gcc -Ofast -mabi=lp64 -march=rv64i -o sum1tonOfast.o sum1ton.c
 
 # 3. Disassemble
-riscv64-unknown-elf-objdump -d sum1ton.elf | less
-riscv64-unknown-elf-objdump -d sum1ton.elf | less
+riscv64-unknown-elf-objdump -d sum1ton.o | less
 
 # 4. Run on Spike
-spike pk sum1ton.o
 spike pk sum1ton.o
 
 # 5. Debug on Spike
