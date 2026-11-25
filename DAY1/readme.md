@@ -592,37 +592,13 @@ Highest number represented by unsigned long long int is 18446744073709551615
 
 > `bbl loader` is just a start-up banner printed by the proxy kernel. It is normal.
 
-### 5.3 These match the theory
+### These match the theory
 
 | Type | Theory | Program output |
 |------|--------|----------------|
 | Signed max | 2⁶³ − 1 | 9223372036854775807 |
 | Signed min | −2⁶³ | -9223372036854775808 |
 | Unsigned max | 2⁶⁴ − 1 | 18446744073709551615 |
-
-### A note on accuracy
-
-A `double` only has 53 bits of precision, so `pow(2,63) - 1` can't be stored exactly. It rounds up to 2⁶³, which is one larger than the biggest `long long`. In C, converting an out-of-range `double` to an integer is *undefined behaviour*. RISC-V happens to clamp the value to the maximum, so the output looks correct, but other processors may give a different result.
-
-A safe way to get the same numbers uses `<limits.h>`:
-
-```c
-#include <stdio.h>
-#include <limits.h>
-
-int main()
-{
-    printf("Max long long          : %lld\n", LLONG_MAX);
-    printf("Min long long          : %lld\n", LLONG_MIN);
-    printf("Max unsigned long long : %llu\n", ULLONG_MAX);
-    return 0;
-}
-```
-
-```bash
-riscv64-unknown-elf-gcc -O1 -mabi=lp64 -march=rv64i -o limits.elf limits.c
-spike pk limits.elf
-```
 
 ## RV64 extensions
 
