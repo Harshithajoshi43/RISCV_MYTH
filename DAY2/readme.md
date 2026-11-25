@@ -118,10 +118,96 @@ Before building our own RISC-V core from scratch, we verify how a complete C pro
 
 
 
+# LAB WORK
+
+### Part 1: Calling an Assembly Function from C (`1to9_custom.c` & `load.S`)
+
+In this lab, we write a C program that delegates the sum calculation (from `1` to `9`) to an external RISC-V assembly function (`load`). This demonstrates how C and Assembly communicate directly through **ABI registers**.
+
+#### 1. C Source Code (`1to9_custom.c`)
+The `main()` function declares `load` as an `extern` function and passes two arguments: `0x0` (initial sum) and `count + 1` (`10`). According to RISC-V ABI rules:
+* First argument (`0x0`) is placed in register **`a0`**.
+* Second argument (`10`) is placed in register **`a1`**.
+* The return value from `load()` is expected back in register **`a0`**.
 
 
-
-
+#### 2. Assembly Function (`load.S`)
+The assembly function receives the inputs in `a0` and `a1`, runs a loop to add numbers from `0` up to `9`, and places the final sum (`45`) into **`a0`** before returning (`ret`) to `main`.
 
 <img width="1076" height="607" alt="image" src="https://github.com/user-attachments/assets/a2c73b00-e8f9-4392-ae16-0e44b818b1b9" />
+<img width="1600" height="900" alt="image" src="https://github.com/user-attachments/assets/3e4a3bb0-f31f-4c43-a5e2-2618c2440845" />
+
+
+#### 3. Compilation, Simulation & Disassembly Commands
+Run the following commands to compile both files together, simulate them on the Spike RISC-V simulator, and inspect the generated assembly instructions:
+
+```bash
+# Compile C and Assembly files together using the RISC-V GCC toolchain
+riscv64-unknown-elf-gcc -Ofast -mabi=lp64d -march=rv64imafdc -o 1to9_custom.o 1to9_custom.c load.S
+
+# Run the executable on the Spike simulator via Proxy Kernel (pk)
+spike pk 1to9_custom.o
+
+# View the disassembled object file to verify ABI register assignments in main
+riscv64-unknown-elf-objdump -d 1to9_custom.o | less
+```
+
+**Expected Output:**
+```text
+bbl loader
+Sum of number from 1 to 9 is 45
+```
+
+#### 4. Key Observations from `objdump` Disassembly (`<main>`)
+Looking at the `<main>` disassembly confirms how the compiler follows the ABI rules:
+* `li a1, 10` (`45a9`): Loads the second argument (`count + 1 = 10`) into **`a1`**.
+* `li a0, 0` (`4501`): Loads the first argument (`0x0`) into **`a0`**.
+* `sd ra, 8(sp)` (`e406`): Saves the return address (`ra`) onto the stack before jumping.
+* `jal 1017c <load>`: Jumps to the `load` assembly function.
+* `mv a2, a0` (`862a`): Moves the returned sum (`45`) from **`a0`** into `a2` so `printf` can display it.
+
+---
+
+### Part 2: Running the C Program on a Verilog RISC-V CPU (`rv32im.sh`)
+
+In this step, we verify our C + Assembly program on actual hardware—a 32-bit RISC-V processor (**PicoRV32**) written in Verilog—using **Icarus Verilog (`iverilog`)**.
+
+#### 1. Automation Script (`rv32im.sh`)
+Since PicoRV32 is a 32-bit core (`RV32IM`), the script cross-compiles our code for 32-bit architecture, converts the ELF binary into a `.hex` memory file, and runs the Verilog simulation.
+
+```bash
+riscv64-unknown-elf-gcc -c -mabi=ilp32 -march=rv32im -o 1to9_custom.o 1to9_custom.c
+riscv64-unknown-elf-gcc -c -mabi=ilp32 -march=rv32im -o load.o load.S
+
+riscv64-unknown-elf-gcc -c -mabi=ilp32 -march=rv32im -o syscalls.o syscalls.c
+riscv64-unknown-elf-gcc -mabi=ilp32 -march=rv32im -Wl,--gc-sections -o firmware.elf load.o 1to9_custom.o syscalls.o -T riscv.ld -lstdc++
+chmod -x firmware.elf
+riscv64-unknown-elf-gcc -mabi=ilp32 -march=rv32im -nostdlib -o start.elf start.S -T start.ld -lstdc++
+chmod -x start.elf
+riscv64-unknown-elf-objcopy -O verilog start.elf start.tmp
+riscv64-unknown-elf-objcopy -O verilog firmware.elf firmware.tmp
+cat start.tmp firmware.tmp > firmware.hex
+python3 hex8tohex32.py firmware.hex > firmware32.hex
+rm -f start.tmp firmware.tmp
+iverilog -o testbench.vvp testbench.v picorv32.v
+chmod -x testbench.vvp
+vvp -N testbench.vvp
+```
+
+#### 2. Step-by-Step Breakdown of What the Script Does
+1. **Cross-Compilation (`-march=rv32im -mabi=ilp32`):** Compiles `1to9_custom.c`, `load.S`, `syscalls.c`, and startup code (`start.S`) into 32-bit RISC-V object files.
+2. **Linking (`-T riscv.ld` & `-T start.ld`):** Links all object files into ELF binaries (`firmware.elf` and `start.elf`) mapped to the processor's memory layout.
+3. **Hex File Generation (`objcopy` & `hex8tohex32.py`):** Converts the ELF binaries into Verilog-readable byte format (`firmware.hex`), then formats it into 32-bit wide words (`firmware32.hex`) so the Verilog testbench can load it into memory.
+4. **Hardware Simulation (`iverilog` & `vvp`):** Compiles the CPU (`picorv32.v`) and testbench (`testbench.v`) into `testbench.vvp` and executes the simulation to print the output directly from the simulated RISC-V core.
+
+#### 3. How to Execute the Lab Script
+```bash
+cd ~/riscv_workshop_collaterals/labs
+chmod +x rv32im.sh
+./rv32im.sh
+```
+
+
+
+
 
