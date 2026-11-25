@@ -136,6 +136,7 @@ The assembly function receives the inputs in `a0` and `a1`, runs a loop to add n
 
 <img width="1076" height="607" alt="image" src="https://github.com/user-attachments/assets/a2c73b00-e8f9-4392-ae16-0e44b818b1b9" />
 <img width="1600" height="900" alt="image" src="https://github.com/user-attachments/assets/3e4a3bb0-f31f-4c43-a5e2-2618c2440845" />
+<img width="1600" height="900" alt="image" src="https://github.com/user-attachments/assets/981aee9e-af6a-4936-99fe-bed3b51ff6dc" />
 
 
 #### 3. Compilation, Simulation & Disassembly Commands
@@ -179,33 +180,9 @@ Since PicoRV32 is a 32-bit core (`RV32IM`), the script cross-compiles our code f
 riscv64-unknown-elf-gcc -c -mabi=ilp32 -march=rv32im -o 1to9_custom.o 1to9_custom.c
 riscv64-unknown-elf-gcc -c -mabi=ilp32 -march=rv32im -o load.o load.S
 
-riscv64-unknown-elf-gcc -c -mabi=ilp32 -march=rv32im -o syscalls.o syscalls.c
-riscv64-unknown-elf-gcc -mabi=ilp32 -march=rv32im -Wl,--gc-sections -o firmware.elf load.o 1to9_custom.o syscalls.o -T riscv.ld -lstdc++
-chmod -x firmware.elf
-riscv64-unknown-elf-gcc -mabi=ilp32 -march=rv32im -nostdlib -o start.elf start.S -T start.ld -lstdc++
-chmod -x start.elf
-riscv64-unknown-elf-objcopy -O verilog start.elf start.tmp
-riscv64-unknown-elf-objcopy -O verilog firmware.elf firmware.tmp
-cat start.tmp firmware.tmp > firmware.hex
-python3 hex8tohex32.py firmware.hex > firmware32.hex
-rm -f start.tmp firmware.tmp
-iverilog -o testbench.vvp testbench.v picorv32.v
-chmod -x testbench.vvp
-vvp -N testbench.vvp
 ```
 
-#### 2. Step-by-Step Breakdown of What the Script Does
-1. **Cross-Compilation (`-march=rv32im -mabi=ilp32`):** Compiles `1to9_custom.c`, `load.S`, `syscalls.c`, and startup code (`start.S`) into 32-bit RISC-V object files.
-2. **Linking (`-T riscv.ld` & `-T start.ld`):** Links all object files into ELF binaries (`firmware.elf` and `start.elf`) mapped to the processor's memory layout.
-3. **Hex File Generation (`objcopy` & `hex8tohex32.py`):** Converts the ELF binaries into Verilog-readable byte format (`firmware.hex`), then formats it into 32-bit wide words (`firmware32.hex`) so the Verilog testbench can load it into memory.
-4. **Hardware Simulation (`iverilog` & `vvp`):** Compiles the CPU (`picorv32.v`) and testbench (`testbench.v`) into `testbench.vvp` and executes the simulation to print the output directly from the simulated RISC-V core.
 
-#### 3. How to Execute the Lab Script
-```bash
-cd ~/riscv_workshop_collaterals/labs
-chmod +x rv32im.sh
-./rv32im.sh
-```
 
 
 
