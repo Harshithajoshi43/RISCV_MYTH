@@ -723,6 +723,7 @@ ret                 # go back to the caller
 
 
 #### Lab 02
+```
 riscv64-unknown-elf-gcc -Ofast -mabi=lp64d -march=rv64imafdc -o signedHighest.o signedHighest.c -lm
 spike pk signedHighest.o
 riscv64-unknown-elf-gcc -Ofast -mabi=lp64d -march=rv64imafdc -o unsignedHighest.o unsignedHighest.c -lm
