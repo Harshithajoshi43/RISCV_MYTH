@@ -388,13 +388,385 @@ spike -d pk sum1ton.o
 
 ---
 
-**Next:** Day 02, where we go deeper into RISC-V instruction formats and the generated assembly.
-
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/f82b06d2-c9fc-43c7-a135-b1fd0bb0a20c" />
 
 
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/22418557-993f-47b1-abd1-f432e723d626" />
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/9f6666b5-4055-447d-90c0-70248b4ea247" />
+
+
+
+
+## Lab 02: How 64-bit numbers are stored
+
+RV64 means registers are **64 bits** wide, so each register holds one 64-bit integer.
+
+### Data units
+
+| Unit | Size | Bytes |
+|------|------|-------|
+| Bit | 1 bit | n/a |
+| Byte | 8 bits | 1 |
+| Halfword | 16 bits | 2 |
+| Word | 32 bits | 4 |
+| Doubleword | 64 bits | 8 |
+
+A 64-bit **doubleword** is 8 bytes.
+
+- **LSB (Least Significant Bit):** the rightmost bit, worth the least.
+- **MSB (Most Significant Bit):** the leftmost bit (bit 63), worth the most.
+
+```
+bit 63                                        bit 0
+  │                                             │
+  ▼                                             ▼
+ [ MSB ][ . . . . . . . . . . . . . . . . . ][ LSB ]
+```
+
+### Unsigned integers (only zero and positive)
+
+For **n bits**:
+
+```
+range = 0 to 2^n − 1
+```
+
+**Example with 3 bits:** 2³ = 8 combinations, so the values are 0 to 7.
+
+| Binary | Value |
+|--------|-------|
+| 000 | 0 |
+| 001 | 1 |
+| 010 | 2 |
+| 011 | 3 |
+| 100 | 4 |
+| 101 | 5 |
+| 110 | 6 |
+| 111 | 7 |
+
+**For 64 bits:**
+
+```
+0 to 2^64 − 1  =  0 to 18,446,744,073,709,551,615
+```
+
+**Overflow (wrap-around):** if a result is too big, it wraps around, like a car odometer rolling over. In 64-bit unsigned maths, the result is taken **modulo 2⁶⁴**:
+
+```
+18,446,744,073,709,551,615 + 1  →  0
+```
+
+(With 3 bits: `7 + 1 = 0`.)
+
+### Signed integers (two's complement)
+
+Signed numbers can be negative. RISC-V stores them in **two's complement**.
+
+- **MSB = 0** → non-negative
+- **MSB = 1** → negative
+
+For **n bits**:
+
+```
+range = −2^(n−1) to 2^(n−1) − 1
+```
+
+**For 64 bits:**
+
+```
+−2^63 to 2^63 − 1  =  −9,223,372,036,854,775,808 to 9,223,372,036,854,775,807
+```
+
+**3-bit example:**
+
+| Binary | Signed value | Unsigned value |
+|--------|--------------|----------------|
+| 000 | 0 | 0 |
+| 001 | 1 | 1 |
+| 010 | 2 | 2 |
+| 011 | 3 | 3 |
+| 100 | −4 | 4 |
+| 101 | −3 | 5 |
+| 110 | −2 | 6 |
+| 111 | −1 | 7 |
+
+###  How to write a negative number
+
+1. Write the positive number in binary.
+2. Flip every bit (1's complement).
+3. Add 1 (2's complement).
+
+**Example: −5 in 8 bits**
+
+```
++5            = 0000 0101
+flip all bits = 1111 1010
+add 1         = 1111 1011   ← this is −5 (hex 0xFB)
+```
+
+In 64 bits, −5 is `0xFFFFFFFFFFFFFFFB`.
+
+### Same bits, different meaning
+
+The hardware only stores bits. Whether they mean a signed or unsigned number depends on how the program uses them.
+
+| 64-bit pattern | As unsigned | As signed |
+|----------------|-------------|-----------|
+| `0x0000000000000005` | 5 | 5 |
+| `0x7FFFFFFFFFFFFFFF` | 9,223,372,036,854,775,807 | 9,223,372,036,854,775,807 |
+| `0x8000000000000000` | 9,223,372,036,854,775,808 | −9,223,372,036,854,775,808 |
+| `0xFFFFFFFFFFFFFFFB` | 18,446,744,073,709,551,611 | −5 |
+| `0xFFFFFFFFFFFFFFFF` | 18,446,744,073,709,551,615 | −1 |
+
+---
+
+## Lab 02 hands-on: largest and smallest 64-bit values
+
+Here we use `pow()` from `<math.h>` to calculate the limits. `pow()` works with `double`, so we compile with floating-point support:
+
+- `-march=rv64imafdc` turns on the integer, multiply/divide, atomic, float, double and compressed instructions.
+- `-mabi=lp64d` passes doubles in floating-point registers.
+- `-lm` links the math library.
+
+### Signed: `signedHighest.c`
+
+```c
+#include <stdio.h>
+#include <math.h>
+
+int main()
+{
+    long long int max = (long long int)(pow(2, 63) - 1);
+    long long int min = (long long int)(pow(2, 63) * -1);
+
+    printf("Highest number represented by long long int is %lld\n", max);
+    printf("Lowest number represented by long long int is %lld\n", min);
+    return 0;
+}
+```
+
+Compile and run:
+
+```bash
+riscv64-unknown-elf-gcc -Ofast -mabi=lp64d -march=rv64imafdc -o signedHighest.o signedHighest.c -lm
+spike pk signedHighest.0
+```
+
+Output:
+
+```
+bbl loader
+Highest number represented by long long int is 9223372036854775807
+Lowest number represented by long long int is -9223372036854775808
+```
+
+### Unsigned: `unsignedHighest.c`
+
+```c
+#include <stdio.h>
+#include <math.h>
+
+int main()
+{
+    unsigned long long int max = (unsigned long long int)(pow(2, 64) - 1);
+
+    printf("Highest number represented by unsigned long long int is %llu\n", max);
+    return 0;
+}
+```
+
+Compile and run:
+
+```bash
+riscv64-unknown-elf-gcc -Ofast -mabi=lp64d -march=rv64imafdc -o unsignedHighest.o unsignedHighest.c -lm
+spike pk unsignedHighest.o
+```
+
+Output:
+
+```
+bbl loader
+Highest number represented by unsigned long long int is 18446744073709551615
+```
+
+> `bbl loader` is just a start-up banner printed by the proxy kernel. It is normal.
+
+### 5.3 These match the theory
+
+| Type | Theory | Program output |
+|------|--------|----------------|
+| Signed max | 2⁶³ − 1 | 9223372036854775807 |
+| Signed min | −2⁶³ | -9223372036854775808 |
+| Unsigned max | 2⁶⁴ − 1 | 18446744073709551615 |
+
+### A note on accuracy
+
+A `double` only has 53 bits of precision, so `pow(2,63) - 1` can't be stored exactly. It rounds up to 2⁶³, which is one larger than the biggest `long long`. In C, converting an out-of-range `double` to an integer is *undefined behaviour*. RISC-V happens to clamp the value to the maximum, so the output looks correct, but other processors may give a different result.
+
+A safe way to get the same numbers uses `<limits.h>`:
+
+```c
+#include <stdio.h>
+#include <limits.h>
+
+int main()
+{
+    printf("Max long long          : %lld\n", LLONG_MAX);
+    printf("Min long long          : %lld\n", LLONG_MIN);
+    printf("Max unsigned long long : %llu\n", ULLONG_MAX);
+    return 0;
+}
+```
+
+```bash
+riscv64-unknown-elf-gcc -O1 -mabi=lp64 -march=rv64i -o limits.elf limits.c
+spike pk limits.elf
+```
+
+### Seeing wrap-around and −5 in action
+
+```c
+#include <stdio.h>
+#include <stdint.h>
+#include <inttypes.h>
+
+int main()
+{
+    int64_t  neg  = -5;
+    uint64_t wrap = UINT64_MAX;
+
+    wrap = wrap + 1;   /* unsigned overflow wraps to 0 */
+
+    printf("-5 as signed   : %" PRId64 "\n", neg);
+    printf("-5 as unsigned : %" PRIu64 "\n", (uint64_t)neg);
+    printf("-5 in hex      : 0x%016" PRIx64 "\n", (uint64_t)neg);
+    printf("UINT64_MAX + 1 : %" PRIu64 "\n", wrap);
+    return 0;
+}
+```
+
+```bash
+riscv64-unknown-elf-gcc -O1 -mabi=lp64 -march=rv64i -o datatypes.elf datatypes.c
+spike pk datatypes.elf
+```
+
+Expected output:
+
+```
+-5 as signed   : -5
+-5 as unsigned : 18446744073709551611
+-5 in hex      : 0xfffffffffffffffb
+UINT64_MAX + 1 : 0
+```
+
+This shows that the **same bits** (`0xFFFFFFFFFFFFFFFB`) are −5 when read as signed and 18446744073709551611 when read as unsigned.
+
+---
+
+## RV64 extensions
+
+RISC-V is modular: a small base plus optional add-ons.
+
+| Extension | What it adds |
+|-----------|-------------|
+| **RV64I** | Base 64-bit integer instructions: add, subtract, logic, shifts, loads, stores, branches, jumps |
+| **RV64M** | Integer multiply and divide |
+| **RV64F** | Single-precision (32-bit) floating point |
+| **RV64D** | Double-precision (64-bit) floating point |
+
+`-march=rv64i` uses only the base. `-march=rv64imafdc` adds M, A (atomics), F, D and C (compressed 16-bit instructions).
+
+---
+
+## Common instructions explained
+
+These appear again and again in `objdump` output.
+
+| Instruction | Name | What it does | Example |
+|-------------|------|-------------|---------|
+| `addi` | Add immediate | Adds a small constant to a register | `addi sp,sp,-16` |
+| `lui` | Load upper immediate | Loads a 20-bit value into the upper bits of a register | `lui a5,0x12` |
+| `sd` | Store doubleword | Writes 64 bits from a register to memory | `sd ra,8(sp)` |
+| `ld` | Load doubleword | Reads 64 bits from memory into a register | `ld ra,8(sp)` |
+| `jal` | Jump and link | Jumps to a function and saves the return address | `jal ra,<printf>` |
+| `ret` | Return | Jumps back to the caller (pseudo-instruction) | `ret` |
+| `li` | Load immediate | Puts a constant in a register (pseudo-instruction) | `li a0,5` |
+
+**In plain words:**
+
+- `addi sp,sp,-16` subtracts 16 from the stack pointer, which reserves 16 bytes of stack space (the stack grows downward).
+- `sd ra,8(sp)` saves `ra` at the memory address `sp + 8`. The format is `offset(base register)`.
+- `ld ra,8(sp)` loads it back.
+- `li a0,5` is shorthand for `addi a0,zero,5`.
+- `ret` is shorthand for `jalr zero,0(ra)`.
+
+**Pseudo-instructions** are friendly shortcuts that the assembler expands into real instructions.
+
+**Loading a big constant:** one `addi` can only handle −2048 to 2047, so larger values use two instructions. For example, `li a5,0x12345` becomes:
+
+```asm
+lui  a5,0x12        # a5 = 0x12000  (0x12 shifted left by 12 bits)
+addi a5,a5,0x345    # a5 = 0x12345
+```
+
+**Typical function start and end:**
+
+```asm
+addi sp,sp,-16      # make room on the stack
+sd   ra,8(sp)       # save the return address
+
+# ... function body, may call other functions with jal ...
+
+ld   ra,8(sp)       # restore the return address
+addi sp,sp,16       # free the stack space
+ret                 # go back to the caller
+```
+
+### Important registers
+
+| Register | ABI name | Role |
+|----------|----------|------|
+| x0 | `zero` | Always 0 |
+| x1 | `ra` | Return address |
+| x2 | `sp` | Stack pointer |
+| x10 – x11 | `a0`, `a1` | Arguments and return values |
+| x12 – x17 | `a2`–`a7` | More arguments |
+| x5 – x7, x28 – x31 | `t0`–`t6` | Temporaries |
+| x8, x9, x18 – x27 | `s0`–`s11` | Saved registers |
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| `riscv64-unknown-elf-gcc: command not found` | Add the toolchain's `bin` folder to your `PATH` |
+| `spike: command not found` | Install Spike or add it to your `PATH` |
+| Spike can't find `pk` | Give the full path, e.g. `spike /path/to/riscv64-unknown-elf/bin/pk file.elf` |
+| `undefined reference to pow` | Add `-lm` at the end of the compile command |
+| Float-ABI mismatch error | Use `-march=rv64imafdc` with `-mabi=lp64d`, or `-march=rv64i` with `-mabi=lp64` |
+| `until pc 0 <addr>` never stops | The address isn't in your code. Check your own `objdump` output |
+
+---
+
+## Summary
+
+- The **ISA** is the contract between software and hardware, and RISC-V is open and modular.
+- A **cross-compiler** builds RISC-V programs on your PC, and **Spike** runs them.
+- A 64-bit **doubleword** is 8 bytes.
+- **Unsigned** 64-bit range is `0` to `2⁶⁴ − 1`, and overflow wraps around.
+- **Signed** 64-bit range is `−2⁶³` to `2⁶³ − 1`, stored as two's complement (flip bits, add 1).
+- The **same bits** can mean different numbers depending on signed or unsigned use.
+- Common instructions: `addi`, `lui`, `ld`, `sd`, `jal`, `ret`, `li`.
+
+
+
+#### Lab 02
+riscv64-unknown-elf-gcc -Ofast -mabi=lp64d -march=rv64imafdc -o signedHighest.o signedHighest.c -lm
+spike pk signedHighest.o
+riscv64-unknown-elf-gcc -Ofast -mabi=lp64d -march=rv64imafdc -o unsignedHighest.o unsignedHighest.c -lm
+spike pk unsignedHighest.o
+```
 
 <img width="1920" height="459" alt="image" src="https://github.com/user-attachments/assets/c2f92002-0159-4f0f-82ef-9698a7035264" />
 <img width="1920" height="459" alt="image" src="https://github.com/user-attachments/assets/f64ef339-d8d7-4443-bef4-a989c3b8f980" />
