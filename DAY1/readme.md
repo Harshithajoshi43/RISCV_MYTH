@@ -624,46 +624,6 @@ riscv64-unknown-elf-gcc -O1 -mabi=lp64 -march=rv64i -o limits.elf limits.c
 spike pk limits.elf
 ```
 
-### Seeing wrap-around and −5 in action
-
-```c
-#include <stdio.h>
-#include <stdint.h>
-#include <inttypes.h>
-
-int main()
-{
-    int64_t  neg  = -5;
-    uint64_t wrap = UINT64_MAX;
-
-    wrap = wrap + 1;   /* unsigned overflow wraps to 0 */
-
-    printf("-5 as signed   : %" PRId64 "\n", neg);
-    printf("-5 as unsigned : %" PRIu64 "\n", (uint64_t)neg);
-    printf("-5 in hex      : 0x%016" PRIx64 "\n", (uint64_t)neg);
-    printf("UINT64_MAX + 1 : %" PRIu64 "\n", wrap);
-    return 0;
-}
-```
-
-```bash
-riscv64-unknown-elf-gcc -O1 -mabi=lp64 -march=rv64i -o datatypes.elf datatypes.c
-spike pk datatypes.elf
-```
-
-Expected output:
-
-```
--5 as signed   : -5
--5 as unsigned : 18446744073709551611
--5 in hex      : 0xfffffffffffffffb
-UINT64_MAX + 1 : 0
-```
-
-This shows that the **same bits** (`0xFFFFFFFFFFFFFFFB`) are −5 when read as signed and 18446744073709551611 when read as unsigned.
-
----
-
 ## RV64 extensions
 
 RISC-V is modular: a small base plus optional add-ons.
