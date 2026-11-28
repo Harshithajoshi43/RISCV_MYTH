@@ -54,3 +54,40 @@
 
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/72471478-f70f-4115-8994-9329a369521d" />
 
+```
+   m5_makerchip_module   // (Expanded in Nav-TLV pane.)
+\TLV
+   |calc
+      @1
+         $reset = *reset;
+         
+         // Step 2: Single-bit toggling counter ($valid)
+         $valid = $reset ? 1'b0 : (! >>1$valid);
+         
+         // Step 1: Read $out from 2 cycles earlier (>>2)
+         $val1[31:0] = >>2$out[31:0];
+         $val2[31:0] = $rand2[3:0];
+         $op[1:0]    = $rand3[1:0];
+         
+         // Arithmetic operations in @1
+         $sum[31:0]  = $val1 + $val2;
+         $diff[31:0] = $val1 - $val2;
+         $prod[31:0] = $val1 * $val2;
+         $quot[31:0] = ($val2 != 0) ? ($val1 / $val2) : 32'hDEAD_BEEF;
+
+      @2
+         // Steps 3 & 4: Retime output mux to @2 and clear when !$valid
+         $out[31:0] = ($reset || ! $valid) ? 32'b0 :
+                      ($op == 2'b00)       ? $sum  :
+                      ($op == 2'b01)       ? $diff :
+                      ($op == 2'b10)       ? $prod :
+                                             $quot;
+
+   // Assert these to end simulation before the cycle limit.
+   *passed = *cyc_cnt > 40;
+   *failed = 1'b0;
+\SV
+   endmodule
+```
+
+<img width="1920" height="985" alt="image" src="https://github.com/user-attachments/assets/eda6f2dd-dd23-4951-b85d-636a4eb975d0" />
